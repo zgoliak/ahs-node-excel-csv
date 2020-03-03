@@ -8,12 +8,17 @@
  "keyword": [
   "nodejs",
   "express",
-  "jsforce"
+  "jsforce",
+  "node-cron",
+  "xlsx",
+  "fast-csv",
+  "ssh2"
  ],
  "scripts": {
   "test": "node ./app.js test",
   "start": "node ./app.js",
-  "build-dock": "docker build -t ~/docker_node_demo ."
+  "build-dock": "docker build -t ahs/docker_node_cron_ssh_xlsx_csv:1.0 ."
+  "start-dock": "docker run -d ahs/docker_node_cron_ssh_xlsx_csv:1.0"
  },
  "dependencies": {
   "express": "^4.16.4",
