@@ -4,11 +4,7 @@
 
 ### Purpose
 
-Five9 will hit this at example.com/api?param=example with parameters. This passes to an inbound REST Apex method in Salesforce and passes the parameters as it's given.
-
-If more params need added: five9 will need to add them to the outbound parameters and Salesforce's Apex method will need the same param names added to the Apex methods arguments but this should be able to stay as is.
-
-If param names change: The params must line up (case sensitive) to Apex so the Apex method's argument names match the parameter names given so both will need to be adjusted but this should be able to stay as is.
+This tool will hit Salesforce to pull data using parameters. This will adapt data to the necessary rules of Disney or FirstHealth using parameters. This will generate files and transfer to SFTP using parameters.
 
 ---
 
