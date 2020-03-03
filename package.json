@@ -1,0 +1,27 @@
+{
+ "name": "nodejs-image-demo",
+ "version": "1.0.0",
+ "description": "AHS Docker with Node JS generating Excel and CSV files from Salesforce data and pushing to SFTP on a CRON schedule",
+ "author": "Zakee Goliak",
+ "license": "UNLICENSED",
+ "main": "app.js",
+ "keyword": [
+  "nodejs",
+  "express",
+  "jsforce"
+ ],
+ "scripts": {
+  "test": "node ./app.js test",
+  "start": "node ./app.js",
+  "build-dock": "docker build -t ~/docker_node_demo ."
+ },
+ "dependencies": {
+  "express": "^4.16.4",
+  "node-cron": "2.0.3",
+  "jsforce": "1.9.3",
+  "xlsx": "0.15.5",
+  "fast-csv": "4.0.2",
+  "ssh2": "0.8.7",
+  "excel-compare": "0.1.3"
+ }
+}
