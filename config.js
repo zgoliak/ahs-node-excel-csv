@@ -2,9 +2,9 @@ const config = {
 	SFTP : {
 		HOST : 'localhost',//'host.docker.internal',//
 		PORT : 22,
-		USER : 'zakeegoliak',
-		PASS : '091810',
-		PATH : './Public/'
+		USER : '',
+		PASS : '',
+		PATH : ''
 		},
 	CRON : {
 		TIMEZONE : 'America/Chicago',
