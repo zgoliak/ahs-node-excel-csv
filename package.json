@@ -17,7 +17,7 @@
  "scripts": {
   "test": "node ./app.js test",
   "start": "node ./app.js",
-  "build-dock": "docker build -t ahs/docker_node_cron_ssh_xlsx_csv:1.0 ."
+  "build-dock": "docker build -t ahs/docker_node_cron_ssh_xlsx_csv:1.0 .",
   "start-dock": "docker run -d ahs/docker_node_cron_ssh_xlsx_csv:1.0"
  },
  "dependencies": {
