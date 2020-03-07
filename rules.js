@@ -102,9 +102,9 @@ function do_concat(record,rule,LOGS) {
 	if (LOGS)
 		console.log(`\tRule executing:\n\t\tAction: ${rule.action}\n\t\tOperator: ${rule.concat}\n\t\tField: ${rule.field}\n\t\tCurrent: ${record[rule.field]}`);
 	const concats = rule.concat.split(',');
-	var ret = '';
+	let ret = '';
 	concats.forEach(concat => {
-		var value = (record[concat] !== undefined ? record[concat] : concat);
+		let value = (record[concat] !== undefined ? record[concat] : concat);
 		ret += value;
 		});
 	record[rule.field] = ret;
@@ -125,7 +125,7 @@ function do_replace(record,rule,LOGS) {
 				record[rule.field] = rule.replace;
 			break;
 		case 'today':
-			var d = new Date(Date.now());
+			let d = new Date(Date.now());
 			record[rule.field] = d.getFullYear()
 				+ (d.getMonth() < 10 ? '0' : '') + d.getMonth()
 				+ (d.getDate() < 10 ? '0' : '') + d.getDate();
@@ -149,14 +149,24 @@ function do_format(record,rule,LOGS) {
 			record[rule.field] = record[rule.field].replace(/[^\d]/g, '');
 			break;
 		case 'uniqueproviderid':
-			var ret = record[rule.field].replace(/[^\d-]/g, '');
-			var mid = ret.substring(11);
-			var old = mid;
+			let uniqueproviderid = record[rule.field].replace(/[^\d-]/g, '');
+			let mid = uniqueproviderid.substring(11);
+			let old = mid;
 			while (mid.length < 21) {mid = '0' + mid;}
-			record[rule.field] = ret.replace(old, mid);
+			record[rule.field] = uniqueproviderid.replace(old, mid);
 			break;
 		case 'nospaces':
 			record[rule.field] = record[rule.field].replace(/ /g, '');
+			break;
+		case 'phone':
+			let value = record[rule.field];
+			let phone = value;
+			if (value.match(/\(\d{3}\)\d{3}\-\d{4}/) === null) {
+				value = value.replace(/[^\d]/g, '');
+				if (value.length === 10)
+					phone = '('.concat(value.slice(0,3),')',value.slice(3,6),'-',value.slice(6));
+				}
+			record[rule.field] = phone;
 			break;
 		default:
 			console.warn(`\tFormat '${rule.format}' not supported`);
@@ -167,9 +177,9 @@ function do_format(record,rule,LOGS) {
 	}
 
 function do_format_date(record,rule,LOGS) {
-	var date = Date.parse(record[rule.field]);
+	let date = Date.parse(record[rule.field]);
 	if (!isNaN(date)) {
-		var d = new Date(record[rule.field]);
+		let d = new Date(record[rule.field]);
 		record[rule.field] = d.getFullYear()
 			+ (d.getMonth() < 10 ? '0' : '') + (d.getMonth() + 1)
 			+ (d.getDate() < 10 ? '0' : '') + d.getDate();
