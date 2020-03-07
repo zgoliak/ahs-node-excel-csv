@@ -396,10 +396,10 @@ function getFacilityProgram(record,report) {
     return translation.column === newrec.RefType && translation.value.includes(record[report.REFTYPES.FP.val1]);
     });
   if (trans === undefined) return null;
-  else newrec.RefCode = trans.replace;
+  else newrec.RefCode = '01';
   newrec.RefCodeDesc = 'Primary';
-  newrec.RefVal1 = record[report.REFTYPES.FP.val1];
-  newrec.RefVal2 = null;
+  newrec.RefVal1 = trans.replace;
+  newrec.RefVal2 = record[report.REFTYPES.FP.val1];
   newrec.RefVal3 = null;
   if (LOGS.find(log => {return log === 'facilityprogram'}) !== undefined)
     console.log(`\t\t\tReturning ${JSON.stringify(newrec)} Facility Program`);
@@ -470,7 +470,11 @@ function getAddresses(res,report) {
   }
 
 function getValidOfficeHours(hours) {
+  if (LOGS.find(log => {return log === 'addresses'}) !== undefined)
+    console.log(`\t\tGetting Valid Office Hours\n\t\t\tHours: ${hours}`);
+  console.log(`\t\t\tTest1: ${hours===undefined}\n\t\t\tTest2: ${hours===null}\n\t\t\tTest3: ${hours===''}`);
   if (hours === undefined || hours === null || hours === '') return '00:00 AM - 00:00 PM';
+  console.log(`\t\t\tTest1: ${hours.length} => ${hours.length === 19}\n\t\t\tTest2: ${hours.match(/[\d]{2}:[\d]{2} [?A|P]M/g)}`)
   if (hours.length === 19 && hours.match(/[\d]{2}:[\d]{2} [?A|P]M/g).length === 2) return hours;
   return null;
   }
