@@ -141,6 +141,7 @@ function do_format(record,rule,LOGS) {
 	if (record[rule.field] === '' || record[rule.field] === null) return;
 	if (LOGS)
 		console.log(`\tRule executing:\n\t\tAction: ${rule.action}\n\t\tOperator: ${rule.format}\n\t\tField: ${rule.field}\n\t\tCurrent: ${record[rule.field]}`);
+	let ret = '';
 	switch (rule.format) {
 		case 'date':
 			do_format_date(record,rule,LOGS);
@@ -149,24 +150,24 @@ function do_format(record,rule,LOGS) {
 			record[rule.field] = record[rule.field].replace(/[^\d]/g, '');
 			break;
 		case 'uniqueproviderid':
-			let uniqueproviderid = record[rule.field].replace(/[^\d-]/g, '');
-			let mid = uniqueproviderid.substring(11);
+			ret = record[rule.field].replace(/[^\d-]/g, '');
+			let mid = ret.substring(11);
 			let old = mid;
 			while (mid.length < 21) {mid = '0' + mid;}
-			record[rule.field] = uniqueproviderid.replace(old, mid);
+			record[rule.field] = ret.replace(old, mid);
 			break;
 		case 'nospaces':
 			record[rule.field] = record[rule.field].replace(/ /g, '');
 			break;
 		case 'phone':
 			let value = record[rule.field];
-			let phone = value;
+			ret = value;
 			if (value.match(/\(\d{3}\)\d{3}\-\d{4}/) === null) {
 				value = value.replace(/[^\d]/g, '');
 				if (value.length === 10)
-					phone = '('.concat(value.slice(0,3),')',value.slice(3,6),'-',value.slice(6));
+					ret = '('.concat(value.slice(0,2),')',value.slice(3,5),'-',value.slice(6,9));
 				}
-			record[rule.field] = phone;
+			record[rule.field] = ret;
 			break;
 		default:
 			console.warn(`\tFormat '${rule.format}' not supported`);

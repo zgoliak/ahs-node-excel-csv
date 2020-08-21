@@ -1,4 +1,9 @@
+const util = require('util');
+const stream = require('stream');
+const {once} = require('events');
 const csv = require('@fast-csv/format');
+const fs = require('fs');
+const path = require('path');
 
 const SF = require('../salesforce/salesforce');
 const RULES = require('../rules');
@@ -8,10 +13,7 @@ const {
   REPORTS,
   } = require('./config');
 
-let newres = {};
-let oldres = {};
-let newrec = [];
-
+const finished = util.promisify(stream.finished);
 const d = new Date(Date.now());
 const datestamp = d.getFullYear()
   + ((d.getMonth() + 1) < 10 ? '0' : '') + (d.getMonth() + 1)
@@ -27,6 +29,23 @@ let ret = [];
 module.exports = {
   do : do_main
   };
+
+async function writeIterableToFile(iterable, filePath) {
+  const writable = fs.createWriteStream(filePath, {encoding: 'utf8'});
+  for (const chunk of iterable) {
+    if (!writable.write(chunk)) {
+      // Handle backpressure
+      await once(writable, 'drain');
+      }
+    }
+  writable.end();
+  // Wait until done. Throws if there are errors.
+  await finished(writable);
+  }
+
+let newres = {};
+let oldres = {};
+let newrec = [];
    
 async function do_main() {
   console.log(`Logging enabled for: ${LOGS}`);
@@ -46,7 +65,7 @@ async function do_main() {
     return ret;
   }
 
-function writeCSVfile(searchresults,report) {
+async function writeCSVfile(searchresults,report) {
   let newres = getReferences(searchresults,report);
   if (newres === null) newres = getAddresses(searchresults,report);
   if (newres !== null) searchresults = newres;
@@ -79,10 +98,22 @@ function writeCSVfile(searchresults,report) {
   let filename = timestamp + report.FILENAME + (process.env.PROD === 'true' ? '' : '_Test') + report.EXTENSION;
 
   let opts = {'delimiter' : report.CSV_DELIMITER};
-  let learning = csv.writeToPath(filename, searchresults.records, opts)
-    .on('error', err => {throw err;})
-    .on('finish',file => {});
-    return filename;
+
+  let chunks = [];
+  await csv.writeToString(searchresults.records, opts).then(recordstr => {
+    if (LOGS.find(log => {return log === 'verbose'}) !== undefined)
+      console.log(`Did produce ${recordstr.length} long recordstr: ${recordstr}`);
+    let chunkstr = '';
+    while (recordstr !== '') {
+      chunkstr = recordstr.substr(0, report.CHUNK_SIZE);
+      chunks.push(chunkstr);
+      recordstr = recordstr.replace(chunkstr, '');
+      }
+    });
+
+  await writeIterableToFile(chunks, path.resolve('.', filename));
+
+  return filename;
   }
 
 function buildHeaderFooter(key,index) {
@@ -396,7 +427,7 @@ function getFacilityProgram(record,report) {
     return translation.column === newrec.RefType && translation.value.includes(record[report.REFTYPES.FP.val1]);
     });
   if (trans === undefined) return null;
-  else newrec.RefCode = '01';
+  else newrec.RefCode = '1';
   newrec.RefCodeDesc = 'Primary';
   newrec.RefVal1 = trans.replace;
   newrec.RefVal2 = record[report.REFTYPES.FP.val1];
