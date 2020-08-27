@@ -80,6 +80,8 @@ async function writeCSVfile(searchresults,report) {
     return record;
     });
 
+
+
   let keys = Object.keys(searchresults.records[0]);
   footers[2] = searchresults.records.length + 2;
   header = {}, footer = {};
@@ -98,20 +100,32 @@ async function writeCSVfile(searchresults,report) {
   let filename = timestamp + report.FILENAME + (process.env.PROD === 'true' ? '' : '_Test') + report.EXTENSION;
 
   let opts = {'delimiter' : report.CSV_DELIMITER};
+  if (report.WRITE_STREAM) {
+    let chunks = [];
+    await csv.writeToString(searchresults.records, opts).then(recordstr => {
+      searchresults = null;
+      if (LOGS.find(log => {return log === 'verbose'}) !== undefined)
+        console.log(`Did produce ${recordstr.length} long recordstr: ${recordstr}`);
+      let chunkstr = '';
+      while (recordstr !== '') {
+        chunkstr = recordstr.substr(0, report.CHUNK_SIZE);
+        chunks.push(chunkstr);
+        recordstr = recordstr.replace(chunkstr, '');
+        }
+      });
 
-  let chunks = [];
-  await csv.writeToString(searchresults.records, opts).then(recordstr => {
-    if (LOGS.find(log => {return log === 'verbose'}) !== undefined)
-      console.log(`Did produce ${recordstr.length} long recordstr: ${recordstr}`);
-    let chunkstr = '';
-    while (recordstr !== '') {
-      chunkstr = recordstr.substr(0, report.CHUNK_SIZE);
-      chunks.push(chunkstr);
-      recordstr = recordstr.replace(chunkstr, '');
-      }
-    });
-
-  await writeIterableToFile(chunks, path.resolve('.', filename));
+    await writeIterableToFile(chunks, path.resolve('.', filename));
+    }
+  else {
+    await csv.writeToString(searchresults.records, opts).then(async recordstr => {
+      let writeRecords = recordstr.split(/\n/);
+      if (LOGS.find(log => {return log === 'verbose'}) !== undefined)
+        console.log(`Records to write: ${writeRecords.length}`);
+      await writeRecords.forEach(recordToWrite => {
+        fs.appendFileSync(path.resolve('.', filename), recordToWrite + '\n');
+        });
+      });
+    }
 
   return filename;
   }
@@ -503,9 +517,7 @@ function getAddresses(res,report) {
 function getValidOfficeHours(hours) {
   if (LOGS.find(log => {return log === 'addresses'}) !== undefined)
     console.log(`\t\tGetting Valid Office Hours\n\t\t\tHours: ${hours}`);
-  console.log(`\t\t\tTest1: ${hours===undefined}\n\t\t\tTest2: ${hours===null}\n\t\t\tTest3: ${hours===''}`);
   if (hours === undefined || hours === null || hours === '') return '00:00 AM - 00:00 PM';
-  console.log(`\t\t\tTest1: ${hours.length} => ${hours.length === 19}\n\t\t\tTest2: ${hours.match(/[\d]{2}:[\d]{2} [?A|P]M/g)}`)
   if (hours.length === 19 && hours.match(/[\d]{2}:[\d]{2} [?A|P]M/g).length === 2) return hours;
   return null;
   }

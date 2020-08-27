@@ -93,12 +93,12 @@ async function getSOQLResultsMore(locator, old_con, response) {
 		conn.queryMore(locator, async (error, responseMore) => {
 			if (error) reject(error);
 
-			if (!responseMore.done)
-				response = await getSOQLResultsMore(responseMore.nextRecordsUrl, conn, response);
-
 			var records = response.records;
 			var moreRecords = responseMore.records;
 			response.records = records.concat(moreRecords);
+
+			if (!responseMore.done)
+				response = await getSOQLResultsMore(responseMore.nextRecordsUrl, conn, response);
 
 			resolve(response);
 			})
