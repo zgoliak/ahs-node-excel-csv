@@ -67,7 +67,13 @@ async function do_main() {
 
 async function writeCSVfile(searchresults,report) {
   let newres = getReferences(searchresults,report);
-  if (newres === null) newres = getAddresses(searchresults,report);
+   if (newres === null) {
+      if(report.FILENAME === '_FH_ProviderAddress'){
+          newres = get_FH_ProviderAddressAddresses(searchresults,report);
+      }else if(report.FILENAME === '_FH_AncillaryAddress'){
+          newres = get_FH_AncillaryAddressAddresses(searchresults,report);
+      }
+  }
   if (newres !== null) searchresults = newres;
 
   if (LOGS.find(log => {return log === 'verbose'}) !== undefined)
@@ -79,8 +85,6 @@ async function writeCSVfile(searchresults,report) {
     RULES.do(record,report.RULES,LOGS.find(log => {return log === 'rules';}) !== undefined);
     return record;
     });
-
-
 
   let keys = Object.keys(searchresults.records[0]);
   footers[2] = searchresults.records.length + 2;
@@ -100,10 +104,10 @@ async function writeCSVfile(searchresults,report) {
   let filename = timestamp + report.FILENAME + (process.env.PROD === 'true' ? '' : '_Test') + report.EXTENSION;
 
   let opts = {'delimiter' : report.CSV_DELIMITER};
+
   if (report.WRITE_STREAM) {
     let chunks = [];
     await csv.writeToString(searchresults.records, opts).then(recordstr => {
-      searchresults = null;
       if (LOGS.find(log => {return log === 'verbose'}) !== undefined)
         console.log(`Did produce ${recordstr.length} long recordstr: ${recordstr}`);
       let chunkstr = '';
@@ -146,22 +150,23 @@ function getReferences(res,report) {
   res.records.forEach(record => {
     if (LOGS.find(log => {return log === 'reference'}) !== undefined)
       console.log(`\t\tProcessing Record: ${JSON.stringify(record)}`);
-    var bc = getBoardCertifiedRows(record,report);
-    if (bc !== null) newrecs = newrecs.concat(bc);
     var gp = getGroupPractice(record,report);
     if (gp !== null) newrecs.push(gp);
-    var ha = getHospitalAffiliations(record,report);
-    if (ha !== null) newrecs = newrecs.concat(ha);
-    var n = getNetworks(record,report);
-    if (n !== null) newrecs = newrecs.concat(n);
     var l = getLanguages(record,report);
     if (l !== null) newrecs = newrecs.concat(l);
+    var bc = getBoardCertifiedRows(record,report);
+    if (bc !== null) newrecs = newrecs.concat(bc);
+    var ha = getHospitalAffiliations(record,report);
+    if (ha !== null) newrecs = newrecs.concat(ha);
+    var fp = getFacilityProgram(record,report);
+    if (fp !== null) newrecs.push(fp);
+    var n = getNetworks(record,report);
+    if (n !== null) newrecs = newrecs.concat(n);
+    
     var s = getSpecialty(record,report);
     if (s !== null) newrecs = newrecs.concat(s);
     var pt = getProviderTier(record,report);
     if (pt !== null) newrecs.push(pt);
-    var fp = getFacilityProgram(record,report);
-    if (fp !== null) newrecs.push(fp);
     if (LOGS.find(log => {return log === 'reference'}) !== undefined)
       console.log(`\t\treturning ${newrecs.length} References`);
     });
@@ -196,7 +201,7 @@ function getBoardCertifiedRows(record,report) {
     newrec.NPI__c = record.NPI__c;
     newrec.Tax_ID__c = record.Tax_ID__c;
     newrec.Group__c = record.Group__c;
-    newrec.RefType = 'Board Certified';
+    newrec.RefType = 'Board Certification';
     newrec.RefCode = '02';
     newrec.RefCodeDesc = 'Secondary';
     newrec.RefVal1 = record[report.REFTYPES.BCS.val1] === 'Yes' ? 'Y' : 'N';
@@ -212,7 +217,7 @@ function getBoardCertifiedRows(record,report) {
     newrec.NPI__c = record.NPI__c;
     newrec.Tax_ID__c = record.Tax_ID__c;
     newrec.Group__c = record.Group__c;
-    newrec.RefType = 'Board Certified';
+    newrec.RefType = 'Board Certification';
     newrec.RefCode = '03';
     newrec.RefCodeDesc = 'Tertiary';
     newrec.RefVal1 = record[report.REFTYPES.BCT.val1] === 'Yes' ? 'Y' : 'N';
@@ -266,10 +271,11 @@ function getHospitalAffiliations(record,report) {
     newrec.RefCode = '0' + (index + 1);
     newrec.RefCodeDesc = ['Primary','Secondary','Tertiary','Multiple'][index > 3 ? 3 : index];
     var trans = REFTRANSLATIONS.find(translation => {
-      return translation.column === newrec.RefType && record[value].includes(translation.value);
+      return translation.column === newrec.RefType && record[value].match(translation.value);
       });
     if (trans === undefined) return null;
     else newrec.RefVal1 = trans.replace;
+    newrec.RefVal1 = 'test';
     newrec.RefVal2 = record[value];
     newrec.RefVal3 = null;
     ret.push(newrec);
@@ -290,7 +296,7 @@ function getNetworks(record,report) {
     if (record[value] === null) return;
     var newrec = new Object();
     newrec.Type = '11';
-    newrec.NPI__c = record.NPI__c === undefined ? record.Maximizer_Client_Id_Ancillary__c : record.NPI__c;
+    newrec.NPI__c = record.NPI__c === undefined ? record.ContactID__c : record.NPI__c;
     if (record.Tax_ID__c !== undefined) newrec.Tax_ID__c = record.Tax_ID__c;
     if (record.Group__c !== undefined) newrec.Group__c = record.Group__c;
     newrec.RefType = 'Network';
@@ -430,28 +436,122 @@ function getProviderTier(record,report) {
   }
 
 function getFacilityProgram(record,report) {
-  if (report.REFTYPES.FP === undefined || record[report.REFTYPES.FP.val1] === null) return null;
+  if (report.REFTYPES.FP === undefined || record[report.REFTYPES.FP.val1] === undefined) return null;
   if (LOGS.find(log => {return log === 'facilityprogram'}) !== undefined)
     console.log(`\t\t\tBuilding Facility Program: ${record[report.REFTYPES.FP.val1]}`);
   var newrec = new Object();
   newrec.Type = '11';
-  newrec.NPI__c = record.Maximizer_Client_Id_Ancillary__c;
+  newrec.NPI__c = record.ContactID__c;
   newrec.RefType = 'FacilityProgramType';
   var trans = REFTRANSLATIONS.find(translation => {
     return translation.column === newrec.RefType && translation.value.includes(record[report.REFTYPES.FP.val1]);
     });
   if (trans === undefined) return null;
-  else newrec.RefCode = '1';
+  else newrec.RefCode = '01';
+  //newrec.RefCode = '01 ' + ' .RefType = ' + newrec.RefType + ' trans ' + trans + ' report.REFTYPES.FP.val1 = ' + report.REFTYPES.FP.val1 + ' ' + record[report.REFTYPES.FP.val1]; //+ ' val1 = ' + record[report.REFTYPES.FP.val1];
   newrec.RefCodeDesc = 'Primary';
   newrec.RefVal1 = trans.replace;
+  //newrec.RefVal1 = 'test';
   newrec.RefVal2 = record[report.REFTYPES.FP.val1];
+  //newrec.RefVal2 = 'test';
   newrec.RefVal3 = null;
   if (LOGS.find(log => {return log === 'facilityprogram'}) !== undefined)
     console.log(`\t\t\tReturning ${JSON.stringify(newrec)} Facility Program`);
   return newrec;
   }
-
-function getAddresses(res,report) {
+ 
+var tmpNPI;
+var tmpIndex;
+var tmpTester;
+function get_FH_ProviderAddressAddresses(res,report) {
+   tmpIndex = 0;
+  if (report.ADDRESSES.length <= 0) return null;
+  if (LOGS.find(log => {return log === 'verbose'}) !== undefined)
+    console.log(`\tBuilding Addresses`);
+  var ret = new Object();
+  var newrecs = new Array();
+  res.records.forEach(record => {
+    if (LOGS.find(log => {return log === 'addresses'}) !== undefined)
+      console.log(`\t\tProcessing Record: ${JSON.stringify(record)}`);
+    report.ADDRESSES.forEach((address,index) => {
+      if (record[address.address1] === null || record[address.address1 === undefined]) return;
+      if(tmpNPI === undefined){
+          tmpNPI = record[address.id];
+      }
+      if(tmpNPI === record[address.id]){
+         tmpTester = '0' + (tmpIndex + 1);
+      }else{
+          tmpNPI = record[address.id];
+          tmpIndex = 0;
+          tmpTester = '0' + (tmpIndex + 1);
+      }
+      
+      var newrec = new Object();
+      newrec.Type = '11';
+      newrec.NPI__c = record[address.id];
+      if (record.Tax_ID__c !== undefined) {
+              newrec.Tax_ID__c = record.Tax_ID__c;
+             
+        }
+      if (record.Group__c !== undefined) newrec.Group__c = record.Group__c;
+      newrec.AddressType = tmpTester;
+      newrec.AddressTypeDesc = ['Primary Office','Secondary Office','Third Office','Fourth Office','Fifth Office','Sixth Office','Seventh Office','Eighth Office'][tmpIndex];
+      if (record.GroupNPI__c !== undefined) newrec.LocationNPI = record.GroupNPI__c;
+      if (record.GroupName__c !== undefined) newrec.GroupName = record.GroupName__c;
+      if (record.Tax_ID__c === undefined) newrec.AddressSeq = newrec.AddressType;
+      newrec.Address1 = record[address.address1];
+      newrec.Address2 = record[address.address2];
+      newrec.City = record[address.city];
+      newrec.State = record[address.state];
+      newrec.Zip = record[address.zip];
+      newrec.County = record[address.county];
+      if(record[address.phone] != null){
+        newrec.Phone = record[address.phone].replace('-','').replace('(','').replace(')','');
+      }else{
+          newrec.Phone = record[address.phone];
+      }
+      
+      
+      if (address.fax !== undefined){
+          newrec.Fax = record[address.fax] +'';
+          newrec.Fax = newrec.Fax.replace('-','').replace('(','').replace(')','');
+      }
+      var hours = getValidOfficeHours(record[address.monday]);
+      if (hours === null) return null;
+      else newrec.MonOfficeHours = hours;
+      var hours = getValidOfficeHours(record[address.tuesday]);
+      if (hours === null) return null;
+      else newrec.TueOfficeHours = hours;
+      var hours = getValidOfficeHours(record[address.wednesday]);
+      if (hours === null) return null;
+      else newrec.WedOfficeHours = hours;
+      var hours = getValidOfficeHours(record[address.thursday]);
+      if (hours === null) return null;
+      else newrec.ThuOfficeHours = hours;
+      var hours = getValidOfficeHours(record[address.friday]);
+      if (hours === null) return null;
+      else newrec.FriOfficeHours = hours;
+      var hours = getValidOfficeHours(record[address.saturday]);
+      if (hours === null) return null;
+      else newrec.SatOfficeHours = hours;
+      var hours = getValidOfficeHours(record[address.sunday]);
+      if (hours === null) return null;
+      else newrec.SunOfficeHours = hours;
+      newrec.PracticeWebsite = record.Website__c;
+      if (LOGS.find(log => {return log === 'addresses'}) !== undefined)
+        console.log(`\t\treturning ${JSON.stringify(newrec)} Address`);
+        tmpIndex++;
+      newrecs.push(newrec);
+      });
+    if (LOGS.find(log => {return log === 'addresses'}) !== undefined)
+      console.log(`\t\treturning ${newrecs.length} Addresses`);
+    });
+  ret.totalsize = newrecs.length;
+  ret.records = newrecs;
+  return ret;
+  }
+  
+  function get_FH_AncillaryAddressAddresses(res,report) {
   if (report.ADDRESSES.length <= 0) return null;
   if (LOGS.find(log => {return log === 'verbose'}) !== undefined)
     console.log(`\tBuilding Addresses`);
@@ -504,20 +604,45 @@ function getAddresses(res,report) {
       newrec.PracticeWebsite = record.Website__c;
       if (LOGS.find(log => {return log === 'addresses'}) !== undefined)
         console.log(`\t\treturning ${JSON.stringify(newrec)} Address`);
-      newrecs.push(newrec);
+        if(newrec.AddressTypeDesc == 'Primary' || newrec.AddressTypeDesc == 'Billing'){
+            newrecs.push(newrec);
+        }
       });
     if (LOGS.find(log => {return log === 'addresses'}) !== undefined)
       console.log(`\t\treturning ${newrecs.length} Addresses`);
     });
-  ret.totalsize = newrecs.length;
-  ret.records = newrecs;
-  return ret;
+        ret.totalsize = newrecs.length;
+        ret.records = newrecs;
+        //if(newrec.AddressTypeDesc == 'Primary' || newrec.AddressTypeDesc == 'Billing'){
+            return ret;
   }
 
 function getValidOfficeHours(hours) {
   if (LOGS.find(log => {return log === 'addresses'}) !== undefined)
     console.log(`\t\tGetting Valid Office Hours\n\t\t\tHours: ${hours}`);
-  if (hours === undefined || hours === null || hours === '') return '00:00 AM - 00:00 PM';
-  if (hours.length === 19 && hours.match(/[\d]{2}:[\d]{2} [?A|P]M/g).length === 2) return hours;
+  if (hours === undefined || hours === null || hours === '' || hours.length <10) return '00:00 AM - 00:00 PM';
+  //if (hours.length === 19 && hours.match(/[\d]{1,2}:[\d]{1,2} [?A|P]M/g).length > 1) return hours;
+  if (hours.length > 16 && hours.match(/[\d]{1,2}:[\d]{1,2} [?A|P]M/g).length > 1) return hourFormat(hours);
   return null;
+  }
+  
+function hourFormat(hour){
+  //console.log(hour);
+  var lstSplit1 = hour.split('-');
+  var timeFormat = '';
+  for( x in lstSplit1){
+    //console.log(x);
+    //console.log(lstSplit1);
+    var lstSplit2 = lstSplit1[x].split(':');
+    //console.log(lstSplit2);
+    var intVar1 = parseInt(lstSplit2[0]);
+    //console.log(intVar1);
+    if(intVar1 < 10){
+      intVar1 = '0' + intVar1 + ':' + lstSplit2[1];
+      //console.log(intVar1);
+      timeFormat = timeFormat + '+ ' + intVar1;
+      }
+    }
+  timeFormat = timeFormat.substr(1,timeFormat.length).replace('+','-');
+  return timeFormat;
   }
