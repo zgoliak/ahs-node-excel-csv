@@ -5,7 +5,8 @@ console.info(`Running as ${process.env.PROD === 'true' ? 'PROD' : 'TEST'}`);
 
 // const cron = require('node-cron');
 const client = require('ssh2').Client;
-const cron = require('node-cron')
+const cron = require('node-cron');
+const path = require('path');
 
 const csv = require('./csv-generator/app.js');
 const excel = require('./excel-generator/app.js');
@@ -52,15 +53,18 @@ async function sshFile(file) {
 	c.on('ready', () => {
 		c.sftp(function(err, sftp) {
 			if (err) throw err;
-			sftp.fastPut('./' + file, SFTP.PATH + file, function(err) {
+			let options = {};
+			if (SFTP.CONCURRENCY !== 0) options.concurrency = SFTP.CONCURRENCY;
+			if (SFTP.CHUNK_SIZE !== 0) options.chunkSize = SFTP.CHUNK_SIZE;
+			if (SFTP.MODE !== '') options.mode = SFTP.MODE;
+			if (SFTP.STEP) options.step = function (trans, chunk, total) { console.log(`Total Transferred: ${trans}\nChunks: ${chunk}\nTotal: ${total}`); };
+			sftp.fastPut(path.resolve(SFTP.LOCAL_PATH + file), path.resolve(SFTP.REMOTE_PATH + file), options, function(err) {
 				if (err) throw err;
 				console.log(`Success pushing ${file} to server`);
 				c.end();
 				});
 			});
 		});
-	c.on('error', (err) => { console.error(`ERROR: ${err}`); });
-	c.on('continue', () => { console.info(`Continuing...`); });
 	c.connect(config);
 	}
 

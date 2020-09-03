@@ -4,7 +4,12 @@ const config = {
 		PORT : 22,
 		USER : '',
 		PASS : '',
-		PATH : ''
+		CONCURRENCY : 0,
+		CHUNK_SIZE : 0,
+		MODE : '',
+		STEP : true,
+		LOCAL_PATH : '.',
+		REMOTE_PATH : '.'
 		},
 	CRON : {
 		TIMEZONE : 'America/Chicago',
